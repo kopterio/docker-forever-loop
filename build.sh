@@ -15,5 +15,6 @@ done
 
 docker cp ${builder}:/forever-loop .
 docker rm ${builder}
+docker rmi builder
 
 docker build -t forever-loop .
