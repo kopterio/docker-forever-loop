@@ -13,8 +13,8 @@ until docker logs --tail 1 $builder | grep 'done.'; do
   sleep 10
 done
 
-docker cp ${builder}:/forever-loop .
+docker cp ${builder}:/forever-http-loop .
 docker rm ${builder}
 docker rmi builder
 
-docker build -t forever-loop .
+docker build -t forever-http-loop .

@@ -2,6 +2,7 @@
 
 apk update
 apk add gcc musl-dev
-gcc -o forever-loop forever-loop.c -static
-strip forever-loop
+gcc -Wall -o forever-http-loop forever-http-loop.c -static
+strip forever-http-loop
+ls -altr forever-http-loop
 echo "done."

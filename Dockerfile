@@ -1,5 +1,5 @@
 FROM scratch
 
-COPY forever-loop /
+COPY forever-http-loop /
 
-ENTRYPOINT ["/forever-loop"]
+ENTRYPOINT ["/forever-http-loop"]
