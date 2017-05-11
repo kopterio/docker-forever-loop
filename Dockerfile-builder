@@ -1,6 +1,0 @@
-FROM alpine:3.4
-
-COPY forever-http-loop.c /
-COPY compile-inside-alpine.sh /
-
-CMD "/compile-inside-alpine.sh"

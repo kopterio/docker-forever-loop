@@ -1,57 +1,119 @@
+#include <arpa/inet.h>          /* inet_ntoa */
+#include <signal.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <time.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#define LISTENQ  1024  /* second argument to listen() */
 #define PORTNUM 80
 
-int main(int argc, char *argv[]) {
-  char *res = "HTTP/1.0 200 OK\n\rContent-Length: 6\n\r\n\rBye.\r\n";
-  char buf[512];
+/* Simplifies calls to bind(), connect(), and accept() */
+typedef struct sockaddr SA;
 
-  struct sockaddr_in dest;
-  struct sockaddr_in serv;
+int open_listenfd(int port){
+    int listenfd, optval=1;
+    struct sockaddr_in serveraddr;
 
-  int sock, consock;
-  socklen_t socksize = sizeof(struct sockaddr_in);
+    /* Create a socket descriptor */
+    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        return -1;
 
-  /* handle signals being PID 1 */
-  signal(SIGHUP, exit);
-  signal(SIGINT, exit);
-  signal(SIGQUIT, exit);
-  signal(SIGTRAP, exit);
-  signal(SIGABRT, exit);
-  signal(SIGKILL, exit);
-  signal(SIGUSR1, exit);
-  signal(SIGUSR2, exit);
-  signal(SIGTERM, exit);
-  signal(SIGSTOP, exit);
+    /* Eliminates "Address already in use" error from bind. */
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
+                   (const void *)&optval , sizeof(int)) < 0)
+        return -1;
 
-  memset(&serv, 0, sizeof(serv));           /* zero struct before using */
-  serv.sin_family = AF_INET;                /* set protocol to tcp/ip */
-  serv.sin_addr.s_addr = htonl(INADDR_ANY); /* set address to any interface */
-  serv.sin_port = htons(PORTNUM);           /* set server port number */
+    // 6 is TCP's protocol number
+    // enable this, much faster : 4000 req/s -> 17000 req/s
+    if (setsockopt(listenfd, 6, TCP_CORK,
+                   (const void *)&optval , sizeof(int)) < 0)
+        return -1;
 
-  sock = socket(AF_INET, SOCK_STREAM, 0);
+    /* Listenfd will be an endpoint for all requests to port
+       on any IP address for this host */
+    memset(&serveraddr, 0, sizeof(serveraddr));
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serveraddr.sin_port = htons((unsigned short)port);
+    if (bind(listenfd, (SA *)&serveraddr, sizeof(serveraddr)) < 0)
+        return -1;
 
-  bind(sock, (struct sockaddr *)&serv, sizeof(struct sockaddr));
+    /* Make it a listening socket ready to accept connection requests */
+    if (listen(listenfd, LISTENQ) < 0)
+        return -1;
+    return listenfd;
+}
 
-  listen(sock, 1);
+void process(int fd, struct sockaddr_in *clientaddr){
+    char *res = "HTTP/1.0 200 OK\n\rContent-Length: 6\n\r\n\rBye.\r\n";
+    char buf[256];
 
-  for (;;) {
-    consock = accept(sock, (struct sockaddr *)&dest, &socksize);
-    printf("Incoming connection from %s - responding.\n", inet_ntoa(dest.sin_addr));
-    send(consock, res, strlen(res), 0);
-    recv(consock, buf, sizeof(buf), 0);
-    sleep(1);  /* allow socket to drain before signalling the socket is closed */
-    shutdown(consock, SHUT_RDWR);
-    close(consock);
-  }
+    printf("accept request, fd is %d, pid is %d\n", fd, getpid());
 
-  close(sock);
+    send(fd, res, strlen(res), 0);
+    recv(fd, buf, sizeof(buf), 0);
+}
+
+int main(int argc, char** argv){
+    struct sockaddr_in clientaddr;
+    int default_port = PORTNUM,
+        listenfd,
+        connfd;
+    socklen_t clientlen = sizeof clientaddr;
+
+    /* handle signals being PID 1 */
+    signal(SIGHUP, exit);
+    signal(SIGINT, exit);
+    signal(SIGQUIT, exit);
+    signal(SIGTRAP, exit);
+    signal(SIGABRT, exit);
+    signal(SIGKILL, exit);
+    signal(SIGUSR1, exit);
+    signal(SIGUSR2, exit);
+    signal(SIGTERM, exit);
+    signal(SIGSTOP, exit);
+
+    listenfd = open_listenfd(default_port);
+    if (listenfd > 0) {
+        printf("listen on port %d, fd is %d\n", default_port, listenfd);
+    } else {
+        perror("ERROR");
+        exit(listenfd);
+    }
+
+    // Ignore SIGPIPE signal, so if browser cancels the request, it
+    // won't kill the whole process.
+    signal(SIGPIPE, SIG_IGN);
+
+    for(int i = 0; i < 10; i++) {
+        int pid = fork();
+        if (pid == 0) {         //  child
+            while(1){
+                connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+                process(connfd, &clientaddr);
+                close(connfd);
+            }
+        } else if (pid > 0) {   //  parent
+            printf("child pid is %d\n", pid);
+        } else {
+            perror("fork");
+        }
+    }
+
+    while(1){
+        connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+        process(connfd, &clientaddr);
+        close(connfd);
+    }
+
+    return 0;
 }
