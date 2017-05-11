@@ -7,7 +7,9 @@ RUN apk add gcc musl-dev
 
 COPY forever-http-loop.c /
 RUN gcc -Wall -o forever-http-loop forever-http-loop.c -static
+RUN ls -altr forever-http-loop
 RUN strip forever-http-loop
+RUN ls -altr forever-http-loop
 
 # --- actual docker image recipe ---
 
