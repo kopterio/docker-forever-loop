@@ -69,6 +69,11 @@ int main(int argc, char** argv){
         listenfd,
         connfd;
     socklen_t clientlen = sizeof clientaddr;
+    const char* s = getenv("PORT");
+
+    if (s != NULL) {
+        default_port = atoi(s);
+    }
 
     setbuf(stdout, NULL); // do not buffer stdout
 
