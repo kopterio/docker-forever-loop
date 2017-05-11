@@ -57,7 +57,7 @@ void process(int fd, struct sockaddr_in *clientaddr){
     char *res = "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nBye.\r\n";
     char buf[256];
 
-    printf("accept request, fd is %d, pid is %d\n", fd, getpid());
+    printf("accept request, fd is %d, pid is %d, ip is %s.\n", fd, getpid(), inet_ntoa(clientaddr->sin_addr));
 
     recv(fd, buf, sizeof(buf), 0);
     send(fd, res, strlen(res), 0);
@@ -69,6 +69,8 @@ int main(int argc, char** argv){
         listenfd,
         connfd;
     socklen_t clientlen = sizeof clientaddr;
+
+    setbuf(stdout, NULL); // do not buffer stdout
 
     /* handle signals being PID 1 */
     signal(SIGHUP, exit);
@@ -88,7 +90,7 @@ int main(int argc, char** argv){
 
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
-        printf("listen on port %d, fd is %d\n", default_port, listenfd);
+        printf("listen on port %d, fd is %d.\n", default_port, listenfd);
     } else {
         perror("ERROR");
         exit(listenfd);
@@ -103,7 +105,7 @@ int main(int argc, char** argv){
                 close(connfd);
             }
         } else if (pid > 0) {   //  parent
-            printf("child pid is %d\n", pid);
+            printf("child pid is %d.\n", pid);
         } else {
             perror("fork");
         }
