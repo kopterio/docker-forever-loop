@@ -56,7 +56,7 @@ int open_listenfd(int port){
 void process(int fd, struct sockaddr_in *clientaddr){
     char *res = "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nBye.\r\n";
     char buf[256];
-    char ts[20];
+    char ts[22];
     time_t t;
     struct tm *tmp;
 
@@ -65,7 +65,7 @@ void process(int fd, struct sockaddr_in *clientaddr){
     tmp = localtime(&t);
     strftime(ts, sizeof(ts)-1, "%FT%TZ", tmp);
 
-    printf("%s: accept request, fd is %d, pid is %d, ip is %s.\n", \
+    printf("%s accept request, fd is %d, pid is %d, ip is %s\n", \
             ts, fd, getpid(), inet_ntoa(clientaddr->sin_addr));
 
     recv(fd, buf, sizeof(buf), 0);
