@@ -54,13 +54,13 @@ int open_listenfd(int port){
 }
 
 void process(int fd, struct sockaddr_in *clientaddr){
-    char *res = "HTTP/1.0 200 OK\n\rContent-Length: 6\n\r\n\rBye.\r\n";
+    char *res = "HTTP/1.0 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nBye.\r\n";
     char buf[256];
 
     printf("accept request, fd is %d, pid is %d\n", fd, getpid());
 
-    send(fd, res, strlen(res), 0);
     recv(fd, buf, sizeof(buf), 0);
+    send(fd, res, strlen(res), 0);
 }
 
 int main(int argc, char** argv){
@@ -82,6 +82,10 @@ int main(int argc, char** argv){
     signal(SIGTERM, exit);
     signal(SIGSTOP, exit);
 
+    // Ignore SIGPIPE signal, so if browser cancels the request, it
+    // won't kill the whole process.
+    signal(SIGPIPE, SIG_IGN);
+
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
         printf("listen on port %d, fd is %d\n", default_port, listenfd);
@@ -89,10 +93,6 @@ int main(int argc, char** argv){
         perror("ERROR");
         exit(listenfd);
     }
-
-    // Ignore SIGPIPE signal, so if browser cancels the request, it
-    // won't kill the whole process.
-    signal(SIGPIPE, SIG_IGN);
 
     for(int i = 0; i < 10; i++) {
         int pid = fork();
