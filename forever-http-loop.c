@@ -54,7 +54,7 @@ int open_listenfd(int port){
 }
 
 void process(int fd, struct sockaddr_in *clientaddr){
-    char *res = "HTTP/1.0 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nBye.\r\n";
+    char *res = "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nBye.\r\n";
     char buf[256];
 
     printf("accept request, fd is %d, pid is %d\n", fd, getpid());
